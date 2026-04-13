@@ -1,0 +1,11 @@
+{
+  "id": "otelLogMonitor",
+  "version": "8.13.0",
+  "kibanaVersion": "8.13.0",
+  "server": false,
+  "ui": true,
+  "owner": { "name": "OTel Log Monitor" },
+  "requiredPlugins": [],
+  "optionalPlugins": [],
+  "requiredBundles": []
+}

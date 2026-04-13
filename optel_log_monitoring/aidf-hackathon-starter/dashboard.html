@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OTel Log Monitor — Live Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+      background: #f1f4f9;
+      color: #1a1c21;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #07135e;
+      color: white;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo svg { opacity: 0.9; }
+    header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
+    header .subtitle { font-size: 0.75rem; opacity: 0.65; margin-top: 2px; }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 0.8rem;
+      opacity: 0.85;
+    }
+    .pulse {
+      width: 8px; height: 8px; border-radius: 50%; background: #00d4a1;
+      animation: pulse 2s infinite;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Layout ── */
+    main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+    .meta-strip {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .meta-card {
+      background: white;
+      border-radius: 8px;
+      padding: 14px 20px;
+      flex: 1;
+      min-width: 160px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .meta-card .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #07135e;
+      line-height: 1.2;
+    }
+    .meta-card .label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 400px; gap: 20px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Cards ── */
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-header h2 { font-size: 0.95rem; font-weight: 600; }
+    .card-body { padding: 20px; }
+
+    /* ── Clusters table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    td { padding: 12px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbfc; }
+
+    .pattern-name { font-weight: 500; color: #111827; }
+    .sample-msg { font-size: 0.75rem; color: #6b7280; margin-top: 3px; }
+
+    .count-badge {
+      display: inline-block;
+      background: #f3f4f6;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .svc-tag {
+      display: inline-block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 0.72rem;
+      margin: 2px 2px 2px 0;
+    }
+
+    /* Severity badges */
+    .badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-critical { background: #fef2f2; color: #dc2626; }
+    .badge-high     { background: #fffbeb; color: #d97706; }
+    .badge-medium   { background: #eff6ff; color: #2563eb; }
+    .badge-low      { background: #f0fdf4; color: #16a34a; }
+
+    /* ── Right panel ── */
+    .summary-text {
+      font-size: 0.9rem;
+      line-height: 1.65;
+      color: #374151;
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+      margin-bottom: 12px;
+      margin-top: 20px;
+    }
+
+    .remediation {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .remediation:last-child { margin-bottom: 0; }
+    .remediation .action {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #111827;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    .confidence-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .confidence-bar-wrap {
+      flex: 1;
+      background: #f3f4f6;
+      border-radius: 999px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .confidence-bar {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease;
+    }
+    .conf-high   { background: #16a34a; }
+    .conf-medium { background: #d97706; }
+    .conf-low    { background: #dc2626; }
+    .confidence-pct { font-size: 0.75rem; font-weight: 600; color: #374151; white-space: nowrap; }
+    .runbook-link {
+      font-size: 0.75rem;
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .runbook-link:hover { text-decoration: underline; }
+
+    /* ── States ── */
+    .loading, .error-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6b7280;
+    }
+    .loading .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #07135e;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-state { color: #dc2626; }
+
+    .model-badge {
+      font-size: 0.7rem;
+      background: #eef2ff;
+      color: #4f46e5;
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .refresh-countdown {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.6);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="6" fill="#1e3a8a"/>
+      <path d="M6 20L11 10L16 16L19 12L22 20H6Z" fill="#60a5fa" opacity="0.9"/>
+      <circle cx="19" cy="9" r="2.5" fill="#f87171"/>
+    </svg>
+    <div>
+      <h1>OTel Log Monitor</h1>
+      <div class="subtitle">OpenTelemetry · Claude claude-sonnet-4-6 · Elasticsearch</div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <span><span class="pulse"></span>Live</span>
+    <span class="refresh-countdown" id="countdown">Refreshing in 30s</span>
+  </div>
+</header>
+
+<main>
+  <div id="app">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Fetching latest AI summary…</p>
+    </div>
+  </div>
+</main>
+
+<script>
+  const API = 'http://localhost:8000';
+  let countdown = 30;
+  let countdownTimer;
+
+  function severityClass(s) {
+    return { critical: 'badge-critical', high: 'badge-high', medium: 'badge-medium', low: 'badge-low' }[s] || 'badge-low';
+  }
+
+  function confClass(c) {
+    if (c >= 0.75) return 'conf-high';
+    if (c >= 0.5) return 'conf-medium';
+    return 'conf-low';
+  }
+
+  function confLabel(c) {
+    if (c >= 0.9) return 'Very High';
+    if (c >= 0.75) return 'High';
+    if (c >= 0.5) return 'Medium';
+    return 'Low';
+  }
+
+  function renderClusters(clusters) {
+    if (!clusters.length) return '<tr><td colspan="4" style="color:#6b7280;text-align:center;padding:32px">No anomalies detected in current window.</td></tr>';
+    return clusters.map(c => `
+      <tr>
+        <td>
+          <div class="pattern-name">${escHtml(c.pattern)}</div>
+          ${c.sample_messages?.[0] ? `<div class="sample-msg">${escHtml(c.sample_messages[0])}</div>` : ''}
+        </td>
+        <td><span class="count-badge">${c.count}</span></td>
+        <td><span class="badge ${severityClass(c.severity)}">${c.severity}</span></td>
+        <td>${(c.affected_services || []).map(s => `<span class="svc-tag">${escHtml(s)}</span>`).join('')}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderRemediations(remediations) {
+    if (!remediations.length) return '<p style="color:#6b7280;font-size:0.85rem">No remediations suggested.</p>';
+    return remediations.map(r => {
+      const pct = Math.round(r.confidence * 100);
+      return `
+        <div class="remediation">
+          <div class="action">${escHtml(r.action)}</div>
+          <div class="confidence-row">
+            <div class="confidence-bar-wrap">
+              <div class="confidence-bar ${confClass(r.confidence)}" style="width:${pct}%"></div>
+            </div>
+            <span class="confidence-pct">${pct}% · ${confLabel(r.confidence)}</span>
+          </div>
+          ${r.runbook_url ? `<a class="runbook-link" href="${escHtml(r.runbook_url)}" target="_blank">📖 View runbook</a>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function escHtml(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderDashboard(data) {
+    const analyzedAt = data.timestamp ? new Date(data.timestamp).toLocaleString() : '—';
+    const clusters = [...(data.clusters || [])].sort((a,b) => b.count - a.count);
+
+    document.getElementById('app').innerHTML = `
+      <div class="meta-strip">
+        <div class="meta-card">
+          <div class="value">${(data.logs_analyzed || 0).toLocaleString()}</div>
+          <div class="label">Logs Analyzed</div>
+        </div>
+        <div class="meta-card">
+          <div class="value">${data.log_window_minutes || 15}m</div>
+          <div class="label">Time Window</div>
+        </div>
+        <div class="meta-card">
+          <div class="value">${clusters.length}</div>
+          <div class="label">Error Clusters</div>
+        </div>
+        <div class="meta-card">
+          <div class="value">${(data.remediations || []).length}</div>
+          <div class="label">Suggested Actions</div>
+        </div>
+        <div class="meta-card">
+          <div class="value" style="font-size:1rem">${analyzedAt}</div>
+          <div class="label">Last Analysis</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- Left: anomaly clusters -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Top Anomaly Clusters</h2>
+            <span style="font-size:0.75rem;color:#6b7280">Sorted by occurrence · ERROR &amp; CRITICAL only</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Error Pattern</th>
+                  <th>Count</th>
+                  <th>Severity</th>
+                  <th>Affected Services</th>
+                </tr>
+              </thead>
+              <tbody>${renderClusters(clusters)}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Right: summary + remediations -->
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-header">
+              <h2>Incident Summary</h2>
+              <span class="model-badge">Claude claude-sonnet-4-6</span>
+            </div>
+            <div class="card-body">
+              <p class="summary-text">${escHtml(data.summary || 'No summary available.')}</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Suggested Actions</h2>
+              <span style="font-size:0.75rem;color:#6b7280">with confidence signals</span>
+            </div>
+            <div class="card-body">
+              ${renderRemediations(data.remediations || [])}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderError(msg) {
+    document.getElementById('app').innerHTML = `
+      <div class="error-state">
+        <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
+        <p><strong>Could not load summary</strong></p>
+        <p style="margin-top:8px;font-size:0.85rem">${escHtml(msg)}</p>
+        <p style="margin-top:8px;font-size:0.85rem;color:#6b7280">Make sure the Claude processor is running at <code>http://localhost:8000</code></p>
+      </div>
+    `;
+  }
+
+  async function fetchAndRender() {
+    try {
+      const res = await fetch(`${API}/latest-summary`);
+      if (!res.ok) throw new Error(`HTTP ${res.status} — ${await res.text()}`);
+      const data = await res.json();
+      renderDashboard(data);
+    } catch (e) {
+      renderError(e.message);
+    }
+  }
+
+  function startCountdown() {
+    clearInterval(countdownTimer);
+    countdown = 30;
+    document.getElementById('countdown').textContent = `Refreshing in ${countdown}s`;
+    countdownTimer = setInterval(() => {
+      countdown--;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = countdown > 0 ? `Refreshing in ${countdown}s` : 'Refreshing…';
+      if (countdown <= 0) {
+        clearInterval(countdownTimer);
+        fetchAndRender().then(startCountdown);
+      }
+    }, 1000);
+  }
+
+  // Initial load
+  fetchAndRender().then(startCountdown);
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "./target/types",
+    "rootDir": ".",
+    "strict": false,
+    "jsx": "react",
+    "allowJs": true,
+    "checkJs": false,
+    "esModuleInterop": true,
+    "lib": ["ES2019", "DOM"]
+  },
+  "include": ["public/**/*.ts", "public/**/*.tsx", "public/**/*.js"],
+  "exclude": ["node_modules", "target"]
+}

@@ -1,0 +1,90 @@
+# OpenTelemetry Collector configuration for OTel Log Monitor
+# Reads NDJSON logs from the generator, normalizes fields, exports to Elasticsearch.
+
+receivers:
+  filelog:
+    include:
+      - /logs/sample.log
+    start_at: beginning
+    operators:
+      # Parse each line as JSON
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.timestamp
+          layout_type: gotime
+          layout: "2006-01-02T15:04:05.999999Z07:00"
+        severity:
+          parse_from: attributes.severity_text
+          mapping:
+            info: INFO
+            warning: WARNING
+            error: ERROR
+            critical: CRITICAL
+
+      # Promote service.name to resource
+      - type: move
+        from: attributes["service.name"]
+        to: resource["service.name"]
+
+      # Move log message to body
+      - type: move
+        from: attributes.body
+        to: body
+
+      # Clean up parsed fields
+      - type: remove
+        field: attributes.timestamp
+
+      - type: remove
+        field: attributes.severity_text
+
+      - type: remove
+        field: attributes.severity_number
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 100
+
+  memory_limiter:
+    limit_mib: 256
+    check_interval: 5s
+
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: hackathon
+        action: insert
+
+exporters:
+  elasticsearch:
+    endpoints:
+      - ${ELASTICSEARCH_URL}
+    user: ${ELASTICSEARCH_USER}
+    password: ${ELASTICSEARCH_PASSWORD}
+    logs_index: logs-otel
+
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  extensions: [health_check, pprof]
+  pipelines:
+    logs:
+      receivers: [filelog]
+      processors: [memory_limiter, resource, batch]
+      exporters: [elasticsearch, debug]
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888

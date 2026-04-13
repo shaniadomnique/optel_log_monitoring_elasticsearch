@@ -147,4 +147,3 @@ Copy the content of `prompts/code-review.prompt.md` and paste it into your AI wi
 ## Learn More
 
 - **Role selection guide**: See `ROLES.md` in this directory
-- **Questions?** Reach out to ruben.mavarez@pivotree.com

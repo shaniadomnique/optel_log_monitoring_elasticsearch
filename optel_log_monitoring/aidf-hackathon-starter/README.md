@@ -86,4 +86,3 @@ Once AIDF is set up in your project, the idea is to **let the AI do the heavy li
 
 - **Detailed guide**: Read `ai/FOR_dev.md` for a complete explanation of every file and directory
 - **Role selection**: See `ai/ROLES.md` to understand which AI role to use for different tasks
-- **Questions?** Reach out to ruben.mavarez@pivotree.com
